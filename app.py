@@ -14,7 +14,7 @@ load_dotenv()
 
 # Configuration for Hugging Face API
 HF_API_URL = "https://api-inference.huggingface.co/models/openai/whisper-tiny.en"
-HF_HEADERS = {"Authorization": f"Bearer {os.getenv['HUGGINGFACE_API_KEY']}"}
+HF_HEADERS = {"Authorization": f"Bearer {st.secrets['HUGGINGFACE_API_KEY']}"}
 # Configuration for Groq API
 
 class AI_Assistant:
@@ -24,7 +24,7 @@ class AI_Assistant:
         ]
         self.context_file = tempfile.NamedTemporaryFile(delete=False)
         self.groq_client = Groq(
-            api_key=os.getenv["GROQ"]
+            api_key=st.secrets["GROQ"]
             )
     
     def query_hf_api(self, audio_data):
