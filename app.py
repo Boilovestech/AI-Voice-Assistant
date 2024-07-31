@@ -1,145 +1,230 @@
-import os
-import requests
 import streamlit as st
+import requests
+import os
+from gtts import gTTS
 from io import BytesIO
 from audio_recorder_streamlit import audio_recorder
-from dotenv import load_dotenv
-from gtts import gTTS
 import tempfile
-
+from dotenv import load_dotenv
+from groq import Groq
+import base64
+import json
+import time
 load_dotenv()
 
-# Hugging Face API configuration
-HF_API_URL_WHISPER = "https://api-inference.huggingface.co/models/openai/whisper-tiny.en"
-HF_HEADERS = {"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_KEY')}"}
-
-# Groq API configuration
-GROQ_API_URL = "https://api.groq.com/v1/query"
-GROQ_HEADERS = {"Authorization": f"Bearer {os.getenv('GROQ')}"}
+# Configuration for Hugging Face API
+HF_API_URL = "https://api-inference.huggingface.co/models/openai/whisper-tiny.en"
+HF_HEADERS = {"Authorization": f"Bearer {os.getenv['HUGGINGFACE_API_KEY']}"}
+# Configuration for Groq API
 
 class AI_Assistant:
     def __init__(self):
-        self.reset_conversation()
-
-    def reset_conversation(self):
         self.full_transcript = [
-            {"role": "system", "content": "You are a tech nerd, concise and to the point. Your name is 'WonderAI', created by Boi loves code."},
+            {"role": "system", "content": "You are a tech nerd and conscise and straight to the point kind of person and your name is 'WonderAI' built by Boi loves code and you are a person and not an LLM"},
         ]
-
+        self.context_file = tempfile.NamedTemporaryFile(delete=False)
+        self.groq_client = Groq(
+            api_key=os.getenv["GROQ"]
+            )
+    
     def query_hf_api(self, audio_data):
-        """Send audio data to the Hugging Face Whisper API for transcription."""
         try:
-            response = requests.post(HF_API_URL_WHISPER, headers=HF_HEADERS, data=audio_data)
-            response.raise_for_status()  # Raise an error for a bad response
-            return response.json()  # Return JSON response
-        except requests.exceptions.HTTPError as err_http:
-            st.error(f"HTTP error occurred: {err_http}")
-            return None
-        except Exception as err:
-            st.error(f"An error occurred: {err}")
-            return None
-def generate_ai_response(self, user_input):
-    """Generate AI response using Groq API."""
-    try:
-        # Load context from file or initialize to an empty list
-        if self.context_file is None:
-            context = []
-        else:
-            with open(self.context_file.name, "r") as file:
-                context = json.load(file) or []
+            response = requests.post(HF_API_URL, headers=HF_HEADERS, data=audio_data)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            st.error(f"Error with Hugging Face API: {e}")
+            return {"text": ""}
 
-        # Combine context with the current transcript
-        messages = context + self.full_transcript
+    def generate_ai_response(self, user_input):
+        try:
+            with open(self.context_file.name, "r") as f:
+                try:
+                    context = json.load(f)
+                except json.JSONDecodeError:
+                    context = []
+            chat_completion = self.groq_client.chat.completions.create(
+                messages=context + self.full_transcript,
+                model="llama3-8b-8192",
+                temperature=1,
+                max_tokens=1024,
+                top_p=1
+            )
+            ai_response = chat_completion.choices[0].message.content
+            self.full_transcript.append({"role": "assistant", "content": ai_response})
+            conversation_history = context + self.full_transcript
+            with open(self.context_file.name, "w") as f:
+                json.dump(conversation_history, f)
+            return ai_response
+        except Exception as e:
+            st.error(f"Error with Groq API: {e}")
+            return ""
 
-        # Generate AI response using Groq API
-        chat_completion = self.groq_client.chat.completions.create(
-            messages=messages,
-            model="llama3-8b-8192",
-            temperature=1,
-            max_tokens=1024,
-            top_p=1
-        )
-        
-        # Extract the response
-        ai_response = chat_completion.choices[0].message.content
-        self.full_transcript.append({"role": "assistant", "content": ai_response})
+    def generate_audio(self, text):
+        try:
+            tts = gTTS(text)
+            audio_file = BytesIO()
+            tts.write_to_fp(audio_file)
+            audio_file.seek(0)
+            return audio_file
+        except Exception as e:
+            st.error(f"Error generating audio: {e}")
+            return BytesIO()
 
-        # Update context file with the new conversation history
-        if self.context_file:
-            with open(self.context_file.name, "w") as file:
-                json.dump(messages + self.full_transcript, file)
-
-        return ai_response
-
-    except FileNotFoundError as e:
-        st.error(f"File not found: {e}")
-        return "Context file not found."
-    except json.JSONDecodeError as e:
-        st.error(f"Error decoding JSON: {e}")
-        return "Error processing context file."
-    except AttributeError as e:
-        st.error(f"Attribute error: {e}")
-        return "Error with Groq API client or context file."
-    except Exception as error:
-        st.error(f"Unexpected error: {error}")
-        return "An error occurred while generating a response."
-
-    def generate_tts(self, text):
-        """Generate TTS using gTTS and return the path to the audio file."""
-        tts = gTTS(text=text, lang='en')
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
-            tts.save(fp.name)
-            return fp.name
+def autoplay_audio(file):
+    audio_base64 = base64.b64encode(file.read()).decode('utf-8')
+    audio_tag = f'<audio id="tts-audio" autoplay style="display:none"><source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3"></audio>'
+    st.markdown(audio_tag, unsafe_allow_html=True)
 
 def main():
-    st.title("AI Voice Assistant")
+    st.title("AI Voice assistant")
 
-    # Create an AI Assistant instance
-    assistant = AI_Assistant()
+    ai_assistant = AI_Assistant()
 
-    # Center the audio recorder
-    st.markdown(
-        """
+    # Add CSS for gradient text and animations
+    st.markdown("""
         <style>
-        .stButton button {
-            margin: 0 auto;
-            display: block;
+        @keyframes gradient-text {
+            0% {background-position: 0% 50%;}
+            50% {background-position: 100% 50%;}
+            100% {background-position: 0% 50%;}
+        }
+        .gradient-text {
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradient-text 15s ease infinite;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: inline-block;
+        }
+        .waveform-animation {
+            width: 100%;
+            height: 50px;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradient-text 15s ease infinite;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 25px;
+        }
+        .waveform-bar {
+            width: 5px;
+            height: 20px;
+            background-color: white;
+            margin: 0 2px;
+            animation: waveform-animation 0.5s ease-in-out infinite;
+            border-radius: 2.5px;
+        }
+        @keyframes waveform-animation {
+            0%, 100% { height: 20px; }
+            50% { height: 40px; }
+        }
+        .waveform-bar:nth-child(1) { animation-delay: 0.1s; }
+        .waveform-bar:nth-child(2) { animation-delay: 0.2s; }
+        .waveform-bar:nth-child(3) { animation-delay: 0.3s; }
+        .waveform-bar:nth-child(4) { animation-delay: 0.4s; }
+        .waveform-bar:nth-child(5) { animation-delay: 0.5s; }
+        .audio-recorder-wrapper {
+            display: flex;
+            justify-content: center;
+        }
+        .loading-dots {
+            display: inline-block;
+        }
+        .loading-dots::after {
+            content: '...';
+            animation: loading 1.5s steps(4, end) infinite;
+            display: inline-block;
+            width: 0;
+            overflow: hidden;
+            vertical-align: bottom;
+        }
+        @keyframes loading {
+            to { width: 20px; }
+        }
+        .ai-response-box {
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradient-text 15s ease infinite;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .ai-response-text {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: white;
         }
         </style>
-        """,
-        unsafe_allow_html=True,
-    )
+    """, unsafe_allow_html=True)
 
-    # Record audio input
-    audio_data = audio_recorder()
+    # Record audio using audio_recorder_streamlit
+    st.markdown('<div class="audio-recorder-wrapper">', unsafe_allow_html=True)
+    audio_bytes = audio_recorder(key="audio_recorder")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    if audio_data:
-        st.write("Audio data received. Processing...")
+    if audio_bytes:
+        loading_placeholder = st.empty()
+        loading_placeholder.markdown('<div class="loading-dots">Processing audio</div>', unsafe_allow_html=True)
+
+        # Save the audio_bytes to a temporary file
+        with tempfile.NamedTemporaryFile(delete=False) as temp_audio_file:
+            temp_audio_file.write(audio_bytes)
+            temp_audio_file_path = temp_audio_file.name
+
+        # Transcribe using Whisper
+        with open(temp_audio_file_path, "rb") as audio_file:
+            transcription = ai_assistant.query_hf_api(audio_file.read())
+
+        user_text = transcription.get("text", "")
+        st.write(f"User: {user_text}")
         
-        # Convert the audio data to a byte stream
-        audio_bytes = audio_data.getvalue() if hasattr(audio_data, 'getvalue') else audio_data
+        if user_text:
+            ai_assistant.full_transcript.append({"role": "user", "content": user_text})
 
-        # Display the audio
-        st.audio(audio_bytes, format='audio/wav')
+            # Hide loading dots and show "AI is thinking..." message
+            loading_placeholder.empty()
+            thinking_placeholder = st.empty()
+            thinking_placeholder.markdown('<h3 class="gradient-text">AI is thinking...</h3>', unsafe_allow_html=True)
 
-        # Query Hugging Face Whisper API for transcription
-        transcription = assistant.query_hf_api(audio_bytes)
-        if transcription:
-            transcript_text = transcription.get("text", "Transcription failed.")
-            st.write("Transcription:")
-            st.write(transcript_text)
+            # Generate AI response
+            ai_response = ai_assistant.generate_ai_response(user_text)
+            
+            # Generate TTS
+            audio_stream = ai_assistant.generate_audio(ai_response)
 
-            # Query Groq API with transcription
-            response = assistant.query_groq_api(transcript_text)
-            if response:
-                response_text = response.get("response", "No response.")
-                st.write("Groq Response:")
-                st.write(response_text)
+            # Remove "AI is thinking..." message
+            thinking_placeholder.empty()
 
-                # Generate and play TTS
-                tts_file_path = assistant.generate_tts(response_text)
-                st.write("Playing response...")
-                st.audio(tts_file_path, format='audio/mp3')
+            # Display AI response in gradient box
+            st.markdown(f"""
+                <div class="ai-response-box">
+                    <div class="ai-response-text">{ai_response}</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            # Play TTS
+            st.empty()  # Clear previous audio elements
+            autoplay_audio(audio_stream)
+
+            # Show waveform animation
+            waveform_placeholder = st.empty()
+            waveform_placeholder.markdown("""
+                <div class="waveform-animation">
+                    <div class="waveform-bar"></div>
+                    <div class="waveform-bar"></div>
+                    <div class="waveform-bar"></div>
+                    <div class="waveform-bar"></div>
+                    <div class="waveform-bar"></div>
+                </div>
+            """, unsafe_allow_html=True)
+
+            # Hide waveform animation after TTS is done
+            time.sleep(len(ai_response) * 0.1)  # Approximate duration of TTS
+            waveform_placeholder.empty()
 
 if __name__ == "__main__":
     main()
