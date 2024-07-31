@@ -10,29 +10,19 @@ from groq import Groq
 import base64
 import json
 import time
-
-# Load secrets from Streamlit secrets management
-HUGGINGFACE_API_KEY = st.secrets["HUGGINGFACE_API_KEY"]
-GROQ_API_KEY = st.secrets["GROQ"]
+load_dotenv()
 
 # Configuration for Hugging Face API
 HF_API_URL = "https://api-inference.huggingface.co/models/openai/whisper-tiny.en"
-HF_HEADERS = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
-
-# Configuration for Groq API
+HF_HEADERS = {"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_KEY')}"}
 
 class AI_Assistant:
     def __init__(self):
-        self.reset_conversation()
-        self.context_file = tempfile.NamedTemporaryFile(delete=False)
-        self.groq_client = Groq(
-            api_key=GROQ_API_KEY
-            )
-    
-    def reset_conversation(self):
         self.full_transcript = [
             {"role": "system", "content": "You are a tech nerd and concise and straight to the point kind of person and your name is 'WonderAI' built by Boi loves code and you are a person and not an LLM"},
         ]
+        self.context_file = tempfile.NamedTemporaryFile(delete=False)
+        self.groq_client = Groq(api_key=os.getenv("GROQ"))
     
     def query_hf_api(self, audio_data):
         try:
@@ -77,25 +67,15 @@ class AI_Assistant:
         except Exception as e:
             st.error(f"Error generating audio: {e}")
             return BytesIO()
-def autoplay_audio(self, file):
-        audio_base64 = base64.b64encode(file.read()).decode('utf-8')
-        audio_tag = f'<audio id="tts-audio" autoplay><source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3"></audio>'
-        st.markdown(audio_tag, unsafe_allow_html=True)
-        st.markdown(
-            """
-            <script>
-            const audio = document.getElementById('tts-audio');
-            audio.onended = function() {{
-                audio.src = 'data:audio/mp3;base64,{audio_base64}';
-                audio.play();
-            }};
-            </script>
-            """,
-            unsafe_allow_html=True
-        )
+
+def autoplay_audio(file):
+    file.seek(0)  # Ensure we're at the beginning of the file
+    audio_base64 = base64.b64encode(file.read()).decode('utf-8')
+    audio_tag = f'<audio autoplay><source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3"></audio>'
+    st.markdown(audio_tag, unsafe_allow_html=True)
 
 def main():
-    st.title("AI Voice assistant")
+    st.title("AI Voice Assistant")
 
     ai_assistant = AI_Assistant()
 
@@ -115,7 +95,7 @@ def main():
             -webkit-text-fill-color: transparent;
             display: inline-block;
         }
-            .waveform-animation {
+        .waveform-animation {
             width: 100%;
             height: 50px;
             background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
@@ -179,15 +159,17 @@ def main():
         </style>
     """, unsafe_allow_html=True)
 
+    # Initialize session state for audio playback
+    if 'play_audio' not in st.session_state:
+        st.session_state.play_audio = False
+
     # Record audio using audio_recorder_streamlit
     st.markdown('<div class="audio-recorder-wrapper">', unsafe_allow_html=True)
     audio_bytes = audio_recorder(key="audio_recorder")
     st.markdown('</div>', unsafe_allow_html=True)
 
     if audio_bytes:
-        # Reset the conversation
-        ai_assistant.reset_conversation()
-
+        st.session_state.play_audio = True  # Set flag to play audio
         loading_placeholder = st.empty()
         loading_placeholder.markdown('<div class="loading-dots">Processing audio</div>', unsafe_allow_html=True)
 
@@ -214,9 +196,6 @@ def main():
             # Generate AI response
             ai_response = ai_assistant.generate_ai_response(user_text)
             
-            # Generate TTS
-            audio_stream = ai_assistant.generate_audio(ai_response)
-
             # Remove "AI is thinking..." message
             thinking_placeholder.empty()
 
@@ -227,20 +206,44 @@ def main():
                 </div>
             """, unsafe_allow_html=True)
             
-            # Play TTS
-            st.empty()  # Clear previous audio elements
-            ai_assistant.autoplay_audio(audio_stream)
+            if ai_response.strip():
+                # Debug logging
+                print(f"Generating audio for response: {ai_response[:50]}...")
+                
+                # Generate TTS
+                audio_stream = ai_assistant.generate_audio(ai_response)
+                
+                print(f"Audio generated, size: {audio_stream.getbuffer().nbytes} bytes")
+                
+                # Store audio stream in session state
+                st.session_state.audio_stream = audio_stream
+            else:
+                st.warning("No audio generated: AI response was empty.")
 
-            waveform_placeholder = st.empty()
-            waveform_placeholder.markdown("""
-                <div class="waveform-animation">
-                    <div class="waveform-bar"></div>
-                    <div class="waveform-bar"></div>
-                    <div class="waveform-bar"></div>
-                    <div class="waveform-bar"></div>
-                    <div class="waveform-bar"></div>
-                </div>
-            """, unsafe_allow_html=True)
+    # Play audio if flag is set
+    if st.session_state.play_audio and hasattr(st.session_state, 'audio_stream'):
+        # Play TTS
+        st.empty()  # Clear previous audio elements
+        autoplay_audio(st.session_state.audio_stream)
+
+        # Show waveform animation
+        waveform_placeholder = st.empty()
+        waveform_placeholder.markdown("""
+            <div class="waveform-animation">
+                <div class="waveform-bar"></div>
+                <div class="waveform-bar"></div>
+                <div class="waveform-bar"></div>
+                <div class="waveform-bar"></div>
+                <div class="waveform-bar"></div>
+            </div>
+        """, unsafe_allow_html=True)
+
+        # Hide waveform animation after TTS is done
+        time.sleep(len(ai_response) * 0.1)  # Approximate duration of TTS
+        waveform_placeholder.empty()
+
+        # Reset play_audio flag
+        st.session_state.play_audio = False
 
 if __name__ == "__main__":
     main()
