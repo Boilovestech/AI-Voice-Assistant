@@ -14,7 +14,7 @@ load_dotenv()
 
 # Configuration for Hugging Face API
 HF_API_URL = "https://api-inference.huggingface.co/models/openai/whisper-tiny.en"
-HF_HEADERS = {"Authorization": f"Bearer {st.secrets['HUGGINGFACE_API_KEY']}"}
+HF_HEADERS = {"Authorization": f"Bearer {st.secrtes['HUGGINGFACE_API_KEY']}"}
 # Configuration for Groq API
 
 class AI_Assistant:
@@ -73,7 +73,7 @@ class AI_Assistant:
 
 def autoplay_audio(file):
     audio_base64 = base64.b64encode(file.read()).decode('utf-8')
-    audio_tag = f'<audio id="tts-audio" autoplay style="display:none"><source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3"></audio>'
+    audio_tag = f'<audio id="tts-audio" autoplay><source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3"></audio>'
     st.markdown(audio_tag, unsafe_allow_html=True)
 
 def main():
