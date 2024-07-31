@@ -6,7 +6,7 @@ from audio_recorder_streamlit import audio_recorder
 from dotenv import load_dotenv
 from gtts import gTTS
 import tempfile
-import pygame
+from IPython.display import Audio
 
 load_dotenv()
 
@@ -21,20 +21,11 @@ GROQ_HEADERS = {"Authorization": f"Bearer {os.getenv('GROQ_API_KEY')}"}
 class AI_Assistant:
     def __init__(self):
         self.reset_conversation()
-        self.pygame_initialized = self.initialize_pygame()
 
     def reset_conversation(self):
         self.full_transcript = [
             {"role": "system", "content": "You are a tech nerd, concise and to the point. Your name is 'WonderAI', created by Boi loves code."},
         ]
-
-    def initialize_pygame(self):
-        try:
-            pygame.mixer.init()
-            return True
-        except Exception as e:
-            st.error(f"Failed to initialize pygame: {e}")
-            return False
 
     def query_hf_api(self, audio_data):
         """Send audio data to the Hugging Face Whisper API for transcription."""
@@ -62,17 +53,12 @@ class AI_Assistant:
             st.error(f"An error occurred: {err}")
             return None
 
-    def generate_and_play_tts(self, text):
-        """Generate TTS using gTTS and play the audio."""
+    def generate_tts(self, text):
+        """Generate TTS using gTTS and return the path to the audio file."""
         tts = gTTS(text=text, lang='en')
-        with tempfile.NamedTemporaryFile(delete=False) as fp:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
             tts.save(fp.name)
-            fp.seek(0)
-            if self.pygame_initialized:
-                pygame.mixer.music.load(fp.name)
-                pygame.mixer.music.play()
-                while pygame.mixer.music.get_busy():
-                    continue  # Wait until the TTS playback finishes
+            return fp.name
 
 def main():
     st.title("AI Voice Assistant")
@@ -117,7 +103,8 @@ def main():
                     st.write(response_text)
 
                     # Generate and play TTS
-                    assistant.generate_and_play_tts(response_text)
+                    tts_file_path = assistant.generate_tts(response_text)
+                    st.audio(tts_file_path)
 
 if __name__ == "__main__":
     main()
