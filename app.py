@@ -3,7 +3,6 @@ import requests
 import os
 from gtts import gTTS
 from io import BytesIO
-from audio_recorder_streamlit import audio_recorder
 import tempfile
 from dotenv import load_dotenv
 from groq import Groq
