@@ -160,7 +160,6 @@ def main():
         </style>
     """, unsafe_allow_html=True)
 
-    # Record audio using audio_recorder_streamlit
     st.markdown('<div class="audio-recorder-wrapper">', unsafe_allow_html=True)
     audio_bytes = audio_recorder(key="audio_recorder")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -226,4 +225,4 @@ def main():
             waveform_placeholder.empty()
 
 if __name__ == "__main__":
-    main()
+    main()  
