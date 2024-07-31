@@ -15,7 +15,7 @@ HF_HEADERS = {"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_KEY')}"}
 
 # Groq API configuration
 GROQ_API_URL = "https://api.groq.com/v1/query"
-GROQ_HEADERS = {"Authorization": f"Bearer {os.getenv('GROQ_API_KEY')}"}
+GROQ_HEADERS = {"Authorization": f"Bearer {os.getenv('GROQ')}"}
 
 class AI_Assistant:
     def __init__(self):
@@ -38,19 +38,51 @@ class AI_Assistant:
         except Exception as err:
             st.error(f"An error occurred: {err}")
             return None
+def generate_ai_response(self, user_input):
+    """Generate AI response using Groq API."""
+    try:
+        # Load context from file or initialize to an empty list
+        if self.context_file is None:
+            context = []
+        else:
+            with open(self.context_file.name, "r") as file:
+                context = json.load(file) or []
 
-    def query_groq_api(self, transcript):
-        """Send transcription to the Groq API for response."""
-        try:
-            response = requests.post(GROQ_API_URL, headers=GROQ_HEADERS, json={"query": transcript})
-            response.raise_for_status()  # Raise an error for a bad response
-            return response.json()  # Return JSON response
-        except requests.exceptions.HTTPError as err_http:
-            st.error(f"HTTP error occurred: {err_http}")
-            return None
-        except Exception as err:
-            st.error(f"An error occurred: {err}")
-            return None
+        # Combine context with the current transcript
+        messages = context + self.full_transcript
+
+        # Generate AI response using Groq API
+        chat_completion = self.groq_client.chat.completions.create(
+            messages=messages,
+            model="llama3-8b-8192",
+            temperature=1,
+            max_tokens=1024,
+            top_p=1
+        )
+        
+        # Extract the response
+        ai_response = chat_completion.choices[0].message.content
+        self.full_transcript.append({"role": "assistant", "content": ai_response})
+
+        # Update context file with the new conversation history
+        if self.context_file:
+            with open(self.context_file.name, "w") as file:
+                json.dump(messages + self.full_transcript, file)
+
+        return ai_response
+
+    except FileNotFoundError as e:
+        st.error(f"File not found: {e}")
+        return "Context file not found."
+    except json.JSONDecodeError as e:
+        st.error(f"Error decoding JSON: {e}")
+        return "Error processing context file."
+    except AttributeError as e:
+        st.error(f"Attribute error: {e}")
+        return "Error with Groq API client or context file."
+    except Exception as error:
+        st.error(f"Unexpected error: {error}")
+        return "An error occurred while generating a response."
 
     def generate_tts(self, text):
         """Generate TTS using gTTS and return the path to the audio file."""
