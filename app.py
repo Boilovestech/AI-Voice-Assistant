@@ -21,7 +21,7 @@ GROQ_HEADERS = {"Authorization": f"Bearer {os.getenv('GROQ_API_KEY')}"}
 class AI_Assistant:
     def __init__(self):
         self.reset_conversation()
-        self.initialize_pygame()
+        self.pygame_initialized = self.initialize_pygame()
 
     def reset_conversation(self):
         self.full_transcript = [
@@ -29,7 +29,12 @@ class AI_Assistant:
         ]
 
     def initialize_pygame(self):
-        pygame.mixer.init()
+        try:
+            pygame.mixer.init()
+            return True
+        except Exception as e:
+            st.error(f"Failed to initialize pygame: {e}")
+            return False
 
     def query_hf_api(self, audio_data):
         """Send audio data to the Hugging Face Whisper API for transcription."""
@@ -63,10 +68,11 @@ class AI_Assistant:
         with tempfile.NamedTemporaryFile(delete=False) as fp:
             tts.save(fp.name)
             fp.seek(0)
-            pygame.mixer.music.load(fp.name)
-            pygame.mixer.music.play()
-            while pygame.mixer.music.get_busy():
-                continue  # Wait until the TTS playback finishes
+            if self.pygame_initialized:
+                pygame.mixer.music.load(fp.name)
+                pygame.mixer.music.play()
+                while pygame.mixer.music.get_busy():
+                    continue  # Wait until the TTS playback finishes
 
 def main():
     st.title("AI Voice Assistant")
