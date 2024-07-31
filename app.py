@@ -185,6 +185,10 @@ def main():
         if user_text:
             ai_assistant.full_transcript.append({"role": "user", "content": user_text})
 
+            # Generate TTS for user input
+            user_audio_stream = ai_assistant.generate_audio(user_text)
+            autoplay_audio(user_audio_stream)
+
             # Hide loading dots and show "AI is thinking..." message
             loading_placeholder.empty()
             thinking_placeholder = st.empty()
@@ -193,8 +197,8 @@ def main():
             # Generate AI response
             ai_response = ai_assistant.generate_ai_response(user_text)
             
-            # Generate TTS
-            audio_stream = ai_assistant.generate_audio(ai_response)
+            # Generate TTS for AI response
+            ai_audio_stream = ai_assistant.generate_audio(ai_response)
 
             # Remove "AI is thinking..." message
             thinking_placeholder.empty()
@@ -206,9 +210,8 @@ def main():
                 </div>
             """, unsafe_allow_html=True)
             
-            # Play TTS
-            st.empty()  # Clear previous audio elements
-            autoplay_audio(audio_stream)
+            # Play TTS for AI response
+            autoplay_audio(ai_audio_stream)
 
             # Show waveform animation
             waveform_placeholder = st.empty()
