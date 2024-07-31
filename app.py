@@ -62,7 +62,7 @@ class AI_Assistant:
 
     def generate_audio(self, text):
         try:
-            tts = gTTS(text)
+            tts = gTTS(text, lang='en')
             audio_file = BytesIO()
             tts.write_to_fp(audio_file)
             audio_file.seek(0)
@@ -71,9 +71,9 @@ class AI_Assistant:
             st.error(f"Error generating audio: {e}")
             return BytesIO()
 
-def autoplay_audio(file, key):
+def autoplay_audio(file):
     audio_base64 = base64.b64encode(file.read()).decode('utf-8')
-    audio_tag = f'<audio id="tts-audio-{key}" autoplay><source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3"></audio>'
+    audio_tag = f'<audio id="tts-audio" autoplay><source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3"></audio>'
     st.markdown(audio_tag, unsafe_allow_html=True)
 
 def main():
@@ -206,9 +206,11 @@ def main():
                 </div>
             """, unsafe_allow_html=True)
             
+            # Clear any previous audio elements
+            st.empty()
+
             # Play TTS
-            key = str(time.time())
-            autoplay_audio(audio_stream, key)
+            autoplay_audio(audio_stream)
 
             # Show waveform animation
             waveform_placeholder = st.empty()
