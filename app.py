@@ -77,8 +77,7 @@ class AI_Assistant:
         except Exception as e:
             st.error(f"Error generating audio: {e}")
             return BytesIO()
-
-    def autoplay_audio(self, file):
+def autoplay_audio(self, file):
         audio_base64 = base64.b64encode(file.read()).decode('utf-8')
         audio_tag = f'<audio id="tts-audio" autoplay><source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3"></audio>'
         st.markdown(audio_tag, unsafe_allow_html=True)
