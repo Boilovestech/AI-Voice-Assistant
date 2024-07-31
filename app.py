@@ -161,6 +161,7 @@ def main():
     """, unsafe_allow_html=True)
 
     st.markdown('<div class="audio-recorder-wrapper">', unsafe_allow_html=True)
+    # Call the audio_recorder function here
     audio_bytes = audio_recorder(key="audio_recorder")
     st.markdown('</div>', unsafe_allow_html=True)
 
