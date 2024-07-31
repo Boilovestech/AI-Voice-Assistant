@@ -71,9 +71,9 @@ class AI_Assistant:
             st.error(f"Error generating audio: {e}")
             return BytesIO()
 
-def autoplay_audio(file):
+def autoplay_audio(file, key):
     audio_base64 = base64.b64encode(file.read()).decode('utf-8')
-    audio_tag = f'<audio id="tts-audio" autoplay><source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3"></audio>'
+    audio_tag = f'<audio id="tts-audio-{key}" autoplay><source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3"></audio>'
     st.markdown(audio_tag, unsafe_allow_html=True)
 
 def main():
@@ -89,7 +89,7 @@ def main():
             50% {background-position: 100% 50%;}
             100% {background-position: 0% 50%;}
         }
-        .gradient-text {
+       .gradient-text {
             background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
             background-size: 400% 400%;
             animation: gradient-text 15s ease infinite;
@@ -97,7 +97,7 @@ def main():
             -webkit-text-fill-color: transparent;
             display: inline-block;
         }
-        .waveform-animation {
+       .waveform-animation {
             width: 100%;
             height: 50px;
             background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
@@ -108,7 +108,7 @@ def main():
             justify-content: center;
             border-radius: 25px;
         }
-        .waveform-bar {
+       .waveform-bar {
             width: 5px;
             height: 20px;
             background-color: white;
@@ -120,19 +120,19 @@ def main():
             0%, 100% { height: 20px; }
             50% { height: 40px; }
         }
-        .waveform-bar:nth-child(1) { animation-delay: 0.1s; }
-        .waveform-bar:nth-child(2) { animation-delay: 0.2s; }
-        .waveform-bar:nth-child(3) { animation-delay: 0.3s; }
-        .waveform-bar:nth-child(4) { animation-delay: 0.4s; }
-        .waveform-bar:nth-child(5) { animation-delay: 0.5s; }
-        .audio-recorder-wrapper {
+       .waveform-bar:nth-child(1) { animation-delay: 0.1s; }
+       .waveform-bar:nth-child(2) { animation-delay: 0.2s; }
+       .waveform-bar:nth-child(3) { animation-delay: 0.3s; }
+       .waveform-bar:nth-child(4) { animation-delay: 0.4s; }
+       .waveform-bar:nth-child(5) { animation-delay: 0.5s; }
+       .audio-recorder-wrapper {
             display: flex;
             justify-content: center;
         }
-        .loading-dots {
+       .loading-dots {
             display: inline-block;
         }
-        .loading-dots::after {
+       .loading-dots::after {
             content: '...';
             animation: loading 1.5s steps(4, end) infinite;
             display: inline-block;
@@ -143,7 +143,7 @@ def main():
         @keyframes loading {
             to { width: 20px; }
         }
-        .ai-response-box {
+       .ai-response-box {
             background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
             background-size: 400% 400%;
             animation: gradient-text 15s ease infinite;
@@ -153,7 +153,7 @@ def main():
             margin-bottom: 20px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
-        .ai-response-text {
+       .ai-response-text {
             font-size: 1.5em;
             font-weight: bold;
             color: white;
@@ -207,8 +207,8 @@ def main():
             """, unsafe_allow_html=True)
             
             # Play TTS
-            st.empty()  # Clear previous audio elements
-            autoplay_audio(audio_stream)
+            key = str(time.time())
+            autoplay_audio(audio_stream, key)
 
             # Show waveform animation
             waveform_placeholder = st.empty()
