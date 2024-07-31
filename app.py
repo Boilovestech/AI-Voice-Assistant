@@ -10,12 +10,13 @@ from groq import Groq
 import base64
 import json
 import time
+import uuid
+
 load_dotenv()
 
 # Configuration for Hugging Face API
 HF_API_URL = "https://api-inference.huggingface.co/models/openai/whisper-tiny.en"
 HF_HEADERS = {"Authorization": f"Bearer {st.secrets['HUGGINGFACE_API_KEY']}"}
-# Configuration for Groq API
 
 class AI_Assistant:
     def __init__(self):
@@ -72,9 +73,11 @@ class AI_Assistant:
             return BytesIO()
 
 def autoplay_audio(file):
+    audio_key = str(uuid.uuid4())
     audio_base64 = base64.b64encode(file.read()).decode('utf-8')
-    audio_tag = f'<audio id="tts-audio" autoplay style="display:none"><source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3"></audio>'
+    audio_tag = f'<audio id="tts-audio-{audio_key}" autoplay><source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3"></audio>'
     st.markdown(audio_tag, unsafe_allow_html=True)
+    return audio_key
 
 def main():
     st.title("AI Voice assistant")
@@ -185,10 +188,6 @@ def main():
         if user_text:
             ai_assistant.full_transcript.append({"role": "user", "content": user_text})
 
-            # Generate TTS for user input
-            user_audio_stream = ai_assistant.generate_audio(user_text)
-            autoplay_audio(user_audio_stream)
-
             # Hide loading dots and show "AI is thinking..." message
             loading_placeholder.empty()
             thinking_placeholder = st.empty()
@@ -197,8 +196,8 @@ def main():
             # Generate AI response
             ai_response = ai_assistant.generate_ai_response(user_text)
             
-            # Generate TTS for AI response
-            ai_audio_stream = ai_assistant.generate_audio(ai_response)
+            # Generate TTS
+            audio_stream = ai_assistant.generate_audio(ai_response)
 
             # Remove "AI is thinking..." message
             thinking_placeholder.empty()
@@ -210,24 +209,27 @@ def main():
                 </div>
             """, unsafe_allow_html=True)
             
-            # Play TTS for AI response
-            autoplay_audio(ai_audio_stream)
+            # Play TTS
+            audio_key = autoplay_audio(audio_stream)
 
             # Show waveform animation
             waveform_placeholder = st.empty()
-            waveform_placeholder.markdown("""
-                <div class="waveform-animation">
+            waveform_placeholder.markdown(f"""
+                <div id="waveform-{audio_key}" class="waveform-animation">
                     <div class="waveform-bar"></div>
                     <div class="waveform-bar"></div>
                     <div class="waveform-bar"></div>
                     <div class="waveform-bar"></div>
                     <div class="waveform-bar"></div>
                 </div>
+                <script>
+                    var audio = document.getElementById('tts-audio-{audio_key}');
+                    var waveform = document.getElementById('waveform-{audio_key}');
+                    audio.onended = function() {{
+                        waveform.style.display = 'none';
+                    }};
+                </script>
             """, unsafe_allow_html=True)
-
-            # Hide waveform animation after TTS is done
-            time.sleep(len(ai_response) * 0.1)  # Approximate duration of TTS
-            waveform_placeholder.empty()
 
 if __name__ == "__main__":
     main()
