@@ -14,7 +14,7 @@ load_dotenv()
 
 # Configuration for Hugging Face API
 HF_API_URL = "https://api-inference.huggingface.co/models/openai/whisper-tiny.en"
-HF_HEADERS = {"Authorization": f"Bearer {st.secrtes['HUGGINGFACE_API_KEY']}"}
+HF_HEADERS = {"Authorization": f"Bearer {st.secrets['HUGGINGFACE_API_KEY']}"}
 # Configuration for Groq API
 
 class AI_Assistant:
