@@ -6,7 +6,6 @@ from audio_recorder_streamlit import audio_recorder
 from dotenv import load_dotenv
 from gtts import gTTS
 import tempfile
-from playsound import playsound
 
 load_dotenv()
 
@@ -83,29 +82,32 @@ def main():
     audio_data = audio_recorder()
 
     if audio_data:
-        # Get WAV data from the recording
-        audio_bytes = audio_data.get_wav_data()
-        if audio_bytes:
-            st.audio(audio_bytes)
+        st.write("Audio data received. Processing...")
+        
+        # Convert the audio data to a byte stream
+        audio_bytes = audio_data.getvalue() if hasattr(audio_data, 'getvalue') else audio_data
 
-            # Query Hugging Face Whisper API for transcription
-            transcription = assistant.query_hf_api(audio_bytes)
-            if transcription:
-                transcript_text = transcription.get("text", "Transcription failed.")
-                st.write("Transcription:")
-                st.write(transcript_text)
+        # Display the audio
+        st.audio(audio_bytes, format='audio/wav')
 
-                # Query Groq API with transcription
-                response = assistant.query_groq_api(transcript_text)
-                if response:
-                    response_text = response.get("response", "No response.")
-                    st.write("Groq Response:")
-                    st.write(response_text)
+        # Query Hugging Face Whisper API for transcription
+        transcription = assistant.query_hf_api(audio_bytes)
+        if transcription:
+            transcript_text = transcription.get("text", "Transcription failed.")
+            st.write("Transcription:")
+            st.write(transcript_text)
 
-                    # Generate and play TTS
-                    tts_file_path = assistant.generate_tts(response_text)
-                    st.write("Playing response...")
-                    st.audio(tts_file_path)  # Play the TTS audio within Streamlit
+            # Query Groq API with transcription
+            response = assistant.query_groq_api(transcript_text)
+            if response:
+                response_text = response.get("response", "No response.")
+                st.write("Groq Response:")
+                st.write(response_text)
+
+                # Generate and play TTS
+                tts_file_path = assistant.generate_tts(response_text)
+                st.write("Playing response...")
+                st.audio(tts_file_path, format='audio/mp3')
 
 if __name__ == "__main__":
     main()
