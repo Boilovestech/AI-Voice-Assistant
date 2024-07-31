@@ -232,7 +232,7 @@ def main():
             st.empty()  # Clear previous audio elements
             ai_assistant.autoplay_audio(audio_stream)
 
-                        waveform_placeholder = st.empty()
+            waveform_placeholder = st.empty()
             waveform_placeholder.markdown("""
                 <div class="waveform-animation">
                     <div class="waveform-bar"></div>
