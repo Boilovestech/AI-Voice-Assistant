@@ -13,7 +13,7 @@ import time
 
 # Load secrets from Streamlit secrets management
 HUGGINGFACE_API_KEY = st.secrets["HUGGINGFACE_API_KEY"]
-GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+GROQ_API_KEY = st.secrets["GROQ"]
 
 # Configuration for Hugging Face API
 HF_API_URL = "https://api-inference.huggingface.co/models/openai/whisper-tiny.en"
