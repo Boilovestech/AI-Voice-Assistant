@@ -1,117 +1,168 @@
-import os
-import requests
 import streamlit as st
-from io import BytesIO
+import requests
+import os
+import tempfile
+import json
+import uuid
 from audio_recorder_streamlit import audio_recorder
 from dotenv import load_dotenv
-from gtts import gTTS
-import tempfile
-import pygame
+from groq import Groq
+from elevenlabs import VoiceSettings
+from elevenlabs.client import ElevenLabs
 
+# Load environment variables
 load_dotenv()
 
-# Hugging Face API configuration
+# API Configurations
 HF_API_URL_WHISPER = "https://api-inference.huggingface.co/models/openai/whisper-tiny.en"
 HF_HEADERS = {"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_KEY')}"}
 
-# Groq API configuration
-GROQ_API_URL = "https://api.groq.com/v1/query"
-GROQ_HEADERS = {"Authorization": f"Bearer {os.getenv('GROQ_API_KEY')}"}
-
 class AI_Assistant:
     def __init__(self):
-        self.reset_conversation()
-        self.initialize_pygame()
-
-    def reset_conversation(self):
-        self.full_transcript = [
-            {"role": "system", "content": "You are a tech nerd, concise and to the point. Your name is 'WonderAI', created by Boi loves code."},
+        self.transcript = [
+            {"role": "system", "content": "You are a tech nerd and concise, straight to the point. Your name is 'WonderAI' built by Boi loves code."},
         ]
-
-    def initialize_pygame(self):
-        pygame.mixer.init()
+        self.context_file = tempfile.NamedTemporaryFile(delete=False)
+        self.groq_client = Groq(api_key=os.getenv("GROQ"))
+        self.eleven_client = ElevenLabs(api_key=os.getenv("ELEVENLABS_API_KEY"))
 
     def query_hf_api(self, audio_data):
-        """Send audio data to the Hugging Face Whisper API for transcription."""
+        """Send audio data to Hugging Face API and return transcription."""
         try:
             response = requests.post(HF_API_URL_WHISPER, headers=HF_HEADERS, data=audio_data)
-            response.raise_for_status()  # Raise an error for a bad response
-            return response.json()  # Return JSON response
-        except requests.exceptions.HTTPError as err_http:
-            st.error(f"HTTP error occurred: {err_http}")
-            return None
-        except Exception as err:
-            st.error(f"An error occurred: {err}")
-            return None
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as error:
+            st.error(f"Error with Hugging Face API: {error}")
+            return {"text": ""}
 
-    def query_groq_api(self, transcript):
-        """Send transcription to the Groq API for response."""
+    def generate_ai_response(self, user_input):
+        """Generate AI response using Groq API."""
         try:
-            response = requests.post(GROQ_API_URL, headers=GROQ_HEADERS, json={"query": transcript})
-            response.raise_for_status()  # Raise an error for a bad response
-            return response.json()  # Return JSON response
-        except requests.exceptions.HTTPError as err_http:
-            st.error(f"HTTP error occurred: {err_http}")
-            return None
-        except Exception as err:
-            st.error(f"An error occurred: {err}")
-            return None
+            with open(self.context_file.name, "r") as file:
+                context = json.load(file) or []
+            messages = context + self.transcript
+            
+            # Generate AI response
+            chat_completion = self.groq_client.chat.completions.create(
+                messages=messages,
+                model="llama3-8b-8192",
+                temperature=1,
+                max_tokens=1024,
+                top_p=1
+            )
+            ai_response = chat_completion.choices[0].message.content
+            self.transcript.append({"role": "assistant", "content": ai_response})
+            
+            # Update context file
+            with open(self.context_file.name, "w") as file:
+                json.dump(messages + self.transcript, file)
+
+            return ai_response
+        except Exception as error:
+            st.error(f"Error with Groq API: {error}")
+            return ""
 
     def generate_and_play_tts(self, text):
-        """Generate TTS using gTTS and play the audio."""
-        tts = gTTS(text=text, lang='en')
-        with tempfile.NamedTemporaryFile(delete=False) as fp:
-            tts.save(fp.name)
-            fp.seek(0)
-            pygame.mixer.music.load(fp.name)
-            pygame.mixer.music.play()
-            while pygame.mixer.music.get_busy():
-                continue  # Wait until the TTS playback finishes
+        """Generate audio from text and play it."""
+        try:
+            # Calling the text_to_speech conversion API with detailed parameters
+            response = self.eleven_client.text_to_speech.convert(
+                voice_id="pNInz6obpgDQGcFmaJgB", # Adam pre-made voice
+                optimize_streaming_latency="0",
+                output_format="mp3_22050_32",
+                text=text,
+                model_id="eleven_turbo_v2_5", # use the turbo model for low latency
+                voice_settings=VoiceSettings(
+                    stability=0.0,
+                    similarity_boost=1.0,
+                    style=0.0,
+                    use_speaker_boost=True,
+                ),
+            )
+
+            # Generating a unique file name for the output MP3 file
+            save_file_path = f"{uuid.uuid4()}.mp3"
+
+            # Writing the audio to a file
+            with open(save_file_path, "wb") as f:
+                for chunk in response:
+                    if chunk:
+                        f.write(chunk)
+
+            # Play the audio file
+            os.system(f"mpg123 {save_file_path}")
+
+            return save_file_path
+
+        except Exception as error:
+            st.error(f"Error generating and playing audio: {error}")
 
 def main():
     st.title("AI Voice Assistant")
+    ai_assistant = AI_Assistant()
 
-    # Create an AI Assistant instance
-    assistant = AI_Assistant()
-
-    # Center the audio recorder
-    st.markdown(
-        """
+    # Add custom CSS styles
+    st.markdown("""
         <style>
-        .stButton button {
-            margin: 0 auto;
-            display: block;
+        /* Include CSS styles for gradient text, animations, and layout */
+        @keyframes gradient-text {   
+            0% {background-position: 0% 50%;}   
+            50% {background-position: 100% 50%;}   
+            100% {background-position: 0% 50%;}   
+        }
+        .gradient-text {   
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);   
+            background-size: 400% 400%;   
+            animation: gradient-text 15s ease infinite;   
+            -webkit-background-clip: text;   
+            -webkit-text-fill-color: transparent;   
+            display: inline-block;   
+        }
+        .waveform-animation {   
+            display: flex;   
+            justify-content: center;   
+            align-items: center;   
+            border-radius: 25px;   
+            height: 50px;   
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);   
+            background-size: 400% 400%;   
+            animation: gradient-text 15s ease infinite;   
+        }
+        .ai-response-box {   
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);   
+            border-radius: 10px;   
+            padding: 20px;   
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);   
         }
         </style>
-        """,
-        unsafe_allow_html=True,
-    )
+        """, unsafe_allow_html=True)
 
     # Record audio input
     audio_data = audio_recorder()
 
-    if audio_data:
-        # Get WAV data from the recording
-        audio_bytes = audio_data.get_wav_data()
-        if audio_bytes:
-            st.audio(audio_bytes)
+    if st.button("Transcribe"):
+        if audio_data is not None:
+            st.success("Transcribing audio...")
+            transcription_result = ai_assistant.query_hf_api(audio_data)
+            transcription_text = transcription_result.get("text", "")
+            st.session_state.user_input = transcription_text
+            st.write(f"User: {transcription_text}")
 
-            # Query Hugging Face Whisper API for transcription
-            transcription = assistant.query_hf_api(audio_bytes)
-            if transcription:
-                transcript_text = transcription.get("text", "Transcription failed.")
-                st.write("Transcription:")
-                st.write(transcript_text)
+            # Generate AI response
+            st.write("Generating AI response...")
+            ai_response = ai_assistant.generate_ai_response(transcription_text)
+            st.write("AI: ", ai_response)
 
-                # Query Groq API with transcription
-                response = assistant.query_groq_api(transcript_text)
-                if response:
-                    response_text = response.get("response", "No response.")
-                    st.write("Groq Response:")
-                    st.write(response_text)
+            # Generate and play audio for the AI response
+            ai_assistant.generate_and_play_tts(ai_response)
+        else:
+            st.error("Please record audio before transcribing.")
 
-                    # Generate and play TTS
-                    assistant.generate_and_play_tts(response_text)
+    # Add UI elements as needed
+    st.sidebar.title("Settings")
+    st.sidebar.write("Adjust your preferences here.")
+    # Additional settings can go here
 
 if __name__ == "__main__":
     main()
