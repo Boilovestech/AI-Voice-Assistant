@@ -6,7 +6,7 @@ from audio_recorder_streamlit import audio_recorder
 from dotenv import load_dotenv
 from gtts import gTTS
 import tempfile
-from IPython.display import Audio
+from playsound import playsound
 
 load_dotenv()
 
@@ -104,7 +104,8 @@ def main():
 
                     # Generate and play TTS
                     tts_file_path = assistant.generate_tts(response_text)
-                    st.audio(tts_file_path)
+                    st.write("Playing response...")
+                    st.audio(tts_file_path)  # Play the TTS audio within Streamlit
 
 if __name__ == "__main__":
     main()
