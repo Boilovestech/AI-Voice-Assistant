@@ -17,151 +17,29 @@ HF_API_URL = "https://api-inference.huggingface.co/models/openai/whisper-tiny.en
 HF_HEADERS = {"Authorization": f"Bearer {os.getenv('HUGGINGFACE_API_KEY')}"}
 
 class AI_Assistant:
-    def __init__(self):
-        self.full_transcript = [
-            {"role": "system", "content": "You are a tech nerd and concise and straight to the point kind of person and your name is 'WonderAI' built by Boi loves code and you are a person and not an LLM"},
-        ]
-        self.context_file = tempfile.NamedTemporaryFile(delete=False)
-        self.groq_client = Groq(api_key=os.getenv("GROQ"))
-    
-    def query_hf_api(self, audio_data):
-        try:
-            response = requests.post(HF_API_URL, headers=HF_HEADERS, data=audio_data)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            st.error(f"Error with Hugging Face API: {e}")
-            return {"text": ""}
-
-    def generate_ai_response(self, user_input):
-        try:
-            with open(self.context_file.name, "r") as f:
-                try:
-                    context = json.load(f)
-                except json.JSONDecodeError:
-                    context = []
-            chat_completion = self.groq_client.chat.completions.create(
-                messages=context + self.full_transcript,
-                model="llama3-8b-8192",
-                temperature=1,
-                max_tokens=1024,
-                top_p=1
-            )
-            ai_response = chat_completion.choices[0].message.content
-            self.full_transcript.append({"role": "assistant", "content": ai_response})
-            conversation_history = context + self.full_transcript
-            with open(self.context_file.name, "w") as f:
-                json.dump(conversation_history, f)
-            return ai_response
-        except Exception as e:
-            st.error(f"Error with Groq API: {e}")
-            return ""
-
-    def generate_audio(self, text):
-        try:
-            tts = gTTS(text)
-            audio_file = BytesIO()
-            tts.write_to_fp(audio_file)
-            audio_file.seek(0)
-            return audio_file
-        except Exception as e:
-            st.error(f"Error generating audio: {e}")
-            return BytesIO()
+    # ... [Keep the AI_Assistant class as is] ...
 
 def autoplay_audio(file):
-    file.seek(0)  # Ensure we're at the beginning of the file
-    audio_base64 = base64.b64encode(file.read()).decode('utf-8')
-    audio_tag = f'<audio autoplay><source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3"></audio>'
-    st.markdown(audio_tag, unsafe_allow_html=True)
+    file.seek(0)
+    audio_bytes = file.read()
+    b64 = base64.b64encode(audio_bytes).decode()
+    md = f"""
+        <audio autoplay="true">
+        <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+        </audio>
+        """
+    st.markdown(md, unsafe_allow_html=True)
 
 def main():
     st.title("AI Voice Assistant")
 
     ai_assistant = AI_Assistant()
 
-    # Add CSS for gradient text and animations
-    st.markdown("""
-        <style>
-        @keyframes gradient-text {
-            0% {background-position: 0% 50%;}
-            50% {background-position: 100% 50%;}
-            100% {background-position: 0% 50%;}
-        }
-        .gradient-text {
-            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
-            background-size: 400% 400%;
-            animation: gradient-text 15s ease infinite;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            display: inline-block;
-        }
-        .waveform-animation {
-            width: 100%;
-            height: 50px;
-            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
-            background-size: 400% 400%;
-            animation: gradient-text 15s ease infinite;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 25px;
-        }
-        .waveform-bar {
-            width: 5px;
-            height: 20px;
-            background-color: white;
-            margin: 0 2px;
-            animation: waveform-animation 0.5s ease-in-out infinite;
-            border-radius: 2.5px;
-        }
-        @keyframes waveform-animation {
-            0%, 100% { height: 20px; }
-            50% { height: 40px; }
-        }
-        .waveform-bar:nth-child(1) { animation-delay: 0.1s; }
-        .waveform-bar:nth-child(2) { animation-delay: 0.2s; }
-        .waveform-bar:nth-child(3) { animation-delay: 0.3s; }
-        .waveform-bar:nth-child(4) { animation-delay: 0.4s; }
-        .waveform-bar:nth-child(5) { animation-delay: 0.5s; }
-        .audio-recorder-wrapper {
-            display: flex;
-            justify-content: center;
-        }
-        .loading-dots {
-            display: inline-block;
-        }
-        .loading-dots::after {
-            content: '...';
-            animation: loading 1.5s steps(4, end) infinite;
-            display: inline-block;
-            width: 0;
-            overflow: hidden;
-            vertical-align: bottom;
-        }
-        @keyframes loading {
-            to { width: 20px; }
-        }
-        .ai-response-box {
-            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
-            background-size: 400% 400%;
-            animation: gradient-text 15s ease infinite;
-            padding: 20px;
-            border-radius: 10px;
-            margin-top: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        .ai-response-text {
-            font-size: 1.5em;
-            font-weight: bold;
-            color: white;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+    # ... [Keep the CSS styles as is] ...
 
-    # Initialize session state for audio playback
-    if 'play_audio' not in st.session_state:
-        st.session_state.play_audio = False
+    # Initialize session state
+    if 'audio_queue' not in st.session_state:
+        st.session_state.audio_queue = []
 
     # Record audio using audio_recorder_streamlit
     st.markdown('<div class="audio-recorder-wrapper">', unsafe_allow_html=True)
@@ -169,7 +47,6 @@ def main():
     st.markdown('</div>', unsafe_allow_html=True)
 
     if audio_bytes:
-        st.session_state.play_audio = True  # Set flag to play audio
         loading_placeholder = st.empty()
         loading_placeholder.markdown('<div class="loading-dots">Processing audio</div>', unsafe_allow_html=True)
 
@@ -207,24 +84,16 @@ def main():
             """, unsafe_allow_html=True)
             
             if ai_response.strip():
-                # Debug logging
-                print(f"Generating audio for response: {ai_response[:50]}...")
-                
                 # Generate TTS
                 audio_stream = ai_assistant.generate_audio(ai_response)
                 
-                print(f"Audio generated, size: {audio_stream.getbuffer().nbytes} bytes")
-                
-                # Store audio stream in session state
-                st.session_state.audio_stream = audio_stream
-            else:
-                st.warning("No audio generated: AI response was empty.")
+                # Add to audio queue
+                st.session_state.audio_queue.append(audio_stream)
 
-    # Play audio if flag is set
-    if st.session_state.play_audio and hasattr(st.session_state, 'audio_stream'):
-        # Play TTS
-        st.empty()  # Clear previous audio elements
-        autoplay_audio(st.session_state.audio_stream)
+    # Play audio from the queue
+    if st.session_state.audio_queue:
+        audio_to_play = st.session_state.audio_queue.pop(0)
+        autoplay_audio(audio_to_play)
 
         # Show waveform animation
         waveform_placeholder = st.empty()
@@ -238,12 +107,13 @@ def main():
             </div>
         """, unsafe_allow_html=True)
 
-        # Hide waveform animation after TTS is done
-        time.sleep(len(ai_response) * 0.1)  # Approximate duration of TTS
+        # Hide waveform animation after TTS is done (adjust time if needed)
+        time.sleep(5)
         waveform_placeholder.empty()
 
-        # Reset play_audio flag
-        st.session_state.play_audio = False
+    # Force a rerun to play the next audio in queue, if any
+    if st.session_state.audio_queue:
+        st.experimental_rerun()
 
 if __name__ == "__main__":
     main()
