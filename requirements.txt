@@ -1,0 +1,5 @@
+streamlit
+gtts
+groq
+python-dotenv
+audio_recorder_streamlit
