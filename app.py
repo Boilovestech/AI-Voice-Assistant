@@ -15,7 +15,7 @@ import uuid
 load_dotenv()
 
 # Configuration for Hugging Face API
-HF_API_URL = "https://api-inference.huggingface.co/models/openai/whisper-tiny.en"
+HF_API_URL = "https://api-inference.huggingface.co/models/openai/whisper-tiny"
 HF_HEADERS = {"Authorization": f"Bearer {st.secrets['HUGGINGFACE_API_KEY']}"}
 
 class AI_Assistant:
