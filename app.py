@@ -21,7 +21,7 @@ HF_HEADERS = {"Authorization": f"Bearer {st.secrets['HUGGINGFACE_API_KEY']}"}
 class AI_Assistant:
     def __init__(self):
         self.full_transcript = [
-            {"role": "system", "content": "You are a tech nerd and conscise and straight to the point kind of person and your name is 'WonderAI' built by Boi loves code and you are a person and not an LLM"},
+            {"role": "system", "content": "You are a tech nerd and concise and straight to the point kind of person and your name is 'WonderAI' built by Boi loves code and you are a person and not an LLM"},
         ]
         self.context_file = tempfile.NamedTemporaryFile(delete=False)
         self.groq_client = Groq(
@@ -83,6 +83,10 @@ def main():
     st.title("AI Voice assistant")
 
     ai_assistant = AI_Assistant()
+
+    # Add a session state to keep track of conversation turns
+    if 'conversation_turn' not in st.session_state:
+        st.session_state.conversation_turn = 0
 
     # Add CSS for gradient text and animations
     st.markdown("""
@@ -212,6 +216,9 @@ def main():
             # Play TTS
             audio_key = autoplay_audio(audio_stream)
 
+            # Increment the conversation turn
+            st.session_state.conversation_turn += 1
+
             # Show waveform animation
             waveform_placeholder = st.empty()
             waveform_placeholder.markdown(f"""
@@ -228,8 +235,14 @@ def main():
                     audio.onended = function() {{
                         waveform.style.display = 'none';
                     }};
+                    // Force audio playback
+                    audio.play();
                 </script>
             """, unsafe_allow_html=True)
+
+            # Debug information
+            st.write(f"Debug: Conversation turn {st.session_state.conversation_turn}")
+            st.write(f"Debug: Audio key {audio_key}")
 
 if __name__ == "__main__":
     main()
